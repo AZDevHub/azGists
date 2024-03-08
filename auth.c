@@ -1,33 +1,80 @@
 #include "qsysinc/H/qsyphandle"
 #include "qsysinc/H/qusec"
 #include "qsysinc/H/string"
+#include "qsysinc/H/stdio"
 
-int main (int argc, char *argv[])
-{
+#define HANDLE_SIZE 12
+#define CURRENT_USER "*CURRENT"
+#define NOPWD "*NOPWD"
+
+int getProfileHandle(char *profileHandle, char *username, char *password) {
+  Qus_EC_t errcode;
+  errcode.Bytes_Provided = 0;
+  if (strcmp(username, CURRENT_USER) == 0) {
+    QsyGetProfileHandleNoPwd(profileHandle, username, password, &errcode);
+  } else {
+    QsyGetProfileHandle(profileHandle, username, password, strlen(password), 0, &errcode);
+  }
+
+  if (errcode.Bytes_Available > 0) {
+    printf("Error: %s\n", errcode.Exception_Id);
+    return -1;
+  }
+  return 0;
+}
+
+int setProfileHandle(char *profileHandle) {
+  Qus_EC_t errcode;
+  QsySetToProfileHandle(profileHandle, &errcode);
+
+  if (errcode.Bytes_Available > 0) {
+    printf("Error: %s\n", errcode.Exception_Id);
+    return -1;
+  }
+  return 0;
+}
+
+int releaseProfileHandle(char *profileHandle) {
+  Qus_EC_t errcode;
+
+  QsyReleaseProfileHandle(profileHandle, &errcode);
+
+  if (errcode.Bytes_Available > 0) {
+    printf("Error: %s\n", errcode.Exception_Id);
+    return -1;
+  }
+  return 0;
+}
+
+int main (int argc, char *argv[]) {
+
   if (argc < 3) {
-    // Not enough arguments provided, handle error or exit
+    printf("Not enough arguments provided\n");
     return -1;
   }
 
-  char *username = argv[1]; 
-  char *password = argv[2]; 
-  int passwordLength = strlen(password); // Calculate the password length
+  char handle[HANDLE_SIZE];
 
-  char handle[12];
-  Qus_EC_t errcode;
+  char pjUser[10];
+  strcpy(pjUser, CURRENT_USER);
+  char pjPwd[6];
+  strcpy(pjPwd, NOPWD);
+  char pjHandle[HANDLE_SIZE];
 
-  errcode.Bytes_Provided = 0;
+  if(getProfileHandle(pjHandle, pjUser, pjPwd) == -1) {
+     return -1;
+  }
 
-  QsyGetProfileHandle(handle,        
-                      username,      
-                      password,      
-                      passwordLength,
-                      0,            
-                      &errcode);     
+  if(getProfileHandle(handle, argv[1], argv[2]) == -1) {
+    return -1;
+  }
 
-  if (errcode.Bytes_Available > errcode.Bytes_Provided) {
-	 return -1;
-    // handle error
+  if(setProfileHandle(handle) == -1) {
+    return -1;
+  }
+
+  if(releaseProfileHandle(pjHandle) == -1) {
+    return -1;
   }
 
   return 0;
